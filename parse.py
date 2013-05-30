@@ -24,6 +24,10 @@ class Name(Token):
     pass
 class HexString(String):
     pass
+class Comment(Token):
+    pass
+class Stream(String):
+    pass
 
 class Tokeniser():
     whitespace = '\x00\x09\x0a\x0c\x0d\x20'
@@ -31,8 +35,12 @@ class Tokeniser():
     def go(self, text, start, end):
         self.found = []
         i = start
+        last = i - 1
         while i < end:
-            print '...', `text[i]`
+            print '...', `text[i]`, i
+            assert last < i
+            if len(self.found) > 0: print self.found[-1]
+            last = i
             if text[i] in self.whitespace:
                 whitespace = ''
                 j = i 
@@ -40,7 +48,7 @@ class Tokeniser():
                     whitespace += text[j]
                     j += 1
                 # whitespace
-                print 'whitespace', i
+                #print 'whitespace', i
                 self.found.append(Whitespace(i, j, whitespace))
                 i = j
                 continue
@@ -49,18 +57,22 @@ class Tokeniser():
                     # string
                     string = ''
                     nested = 1
-                    while nested > 1:
-                        j = min(text.index(')', i+1, end), text.index('(', i+1, end), text.index('\\', i+1, end))
+                    j = i+1
+                    while nested > 0:
+                        j = min(text.index(')', j, end), text.index('(', j, end), text.index('\\', j, end))
                         string += text[i+1:j]
                         if text[j] in '()':
-                            string += text[j]
                             nested += [1, -1]['()'.index(text[j])]
+                            if nested > 0:
+                                string += text[j]
+                            j += 1
                         elif text[j] == '\\':
                             j += 1
                             if text[j] in 'nrtbf()\\':
                                 # escapes
                                 string += '\n\r\t\b\f()\\'['nrtbf()\\'.index(text[j])]
                                 j += 1
+                                i = j
                             elif text[j] in '\r\n':
                                 # multi-line string escape
                                 j += 1
@@ -74,10 +86,11 @@ class Tokeniser():
                                         j = k
                                         break
                             else:
+                                #assert not 'junking'
                                 # junk 
                                 pass
-                    print 'string', `string`
-                    self.found.append(String(start, end, string))
+                    #print 'string', `string`
+                    self.found.append(String(i, j, string))
                     i = j
                 elif text[i] is '<':
                     if text[i+1] is '<':
@@ -86,7 +99,7 @@ class Tokeniser():
                         i += 2
                     else:
                         # hexstring
-                        j = text.index('>', i)
+                        j = text.index('>', i, end)
                         hexstring = (text[i+1:j-1] + '0' * ((j - i) & 1)).decode('hex')
                         self.found.append(HexString(i, j, hexstring))
                         i = j + 1
@@ -114,6 +127,10 @@ class Tokeniser():
                             j += 1
                     self.found.append(Name(i, j, name))
                     i = j
+                elif text[i] is '%':
+                    j = text.index('\n', i+1, end)
+                    self.found.append(Comment(i, j+1, text[i:j+1]))
+                    i = j + 1
                 else:
                     assert 'unhandled delimiter', `text[i]`
             else:
@@ -128,6 +145,13 @@ class Tokeniser():
                         j += 1
                 self.found.append(Keyword(i, j, keyword))
                 i = j
+                if keyword == 'stream':
+                    # stream contents, \r follower not allowed
+                    # currently this does not strip the newline off the front
+                    assert text[i] == '\n' or text[i:i+2] == '\r\n'
+                    j = text.index('\nendstream', i, end)
+                    self.found.append(Stream(i, j, text[i:j]))
+                    i = j
  
 class impositor:
     def open(self, f):
@@ -142,8 +166,10 @@ class impositor:
             self.t.go(self.contents, self.pdf_xref_offset, self.pdf_startxref)
         except AssertionError:
             pass
-        print self.t.found
-            
+        try:
+            self.t.go(self.contents, 2434608-202, len(self.contents))
+        finally:
+            print self.t.found[-10:]
     
 def main():
     i = impositor()
