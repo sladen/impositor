@@ -27,6 +27,8 @@ class String(Token):
     pass
 class Delimiter(Token):
     pass
+class DelimiterOperator(Delimiter):
+    pass
 class Name(Token):
     def __str__(self):
         return '/' + self.what
@@ -135,7 +137,7 @@ class Tokeniser():
                 elif text[i] is '<':
                     if text[i+1] is '<':
                         # dictionary start
-                        self.found.append(Delimiter(i, i+2, '<<'))
+                        self.found.append(DelimiterOperator(i, i+2, '<<'))
                         i += 2
                     else:
                         # hexstring
@@ -148,11 +150,11 @@ class Tokeniser():
                 elif text[i] is '>':
                     if text[i+1] is '>':
                         # dictionary end
-                        self.found.append(Delimiter(i, i+2, '>>'))
+                        self.found.append(DelimiterOperator(i, i+2, '>>'))
                         i += 2
                 elif text[i] in '[]':
                         # array
-                        self.found.append(Delimiter(i, i+1, text[i]))
+                        self.found.append(DelimiterOperator(i, i+1, text[i]))
                         i += 1
                 elif text[i] is '/':
                     # name
