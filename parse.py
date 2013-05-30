@@ -14,6 +14,8 @@ class Token():
         return '%s(%d,%d,%s)\n' % (self.__class__.__name__, self.start, self.end, `self.what`)
     def __str__(self):
         return self.what
+    def dump_editor_utf8(self):
+        return self.__str__().decode('latin-1').encode('utf-8')
 
 class Whitespace(Token):
     pass
@@ -23,7 +25,13 @@ class Keyword(Token):
     pass
 class String(Token):
     def __str__(self):
-        return '(' + ''.join([str(x) for x in self.sub_strings]) + ')'
+        return '(' + ''.join([str(x) for x in self.sub_strings]).replace('\0','\\0') + ')'
+    def dump_editor_utf8(self):
+        print >>sys.stderr,`self.what[0:2]`
+        if self.what.startswith('\xfe\xff'):
+            return '(' + self.what.decode('utf-16').encode('utf-8') + ')'
+        else:
+            return self.__str__().decode('latin-1').encode('utf-8')
     pass
 class Delimiter(Token):
     pass
@@ -45,6 +53,8 @@ class Comment(Token):
 class Stream(String):
     def __str__(self):
         return self.what
+    def dump_editor_utf8(self):
+        return '<%d bytes>' % (self.end-self.start)
     pass
 class SubString(String):
     def __str__(self):
@@ -215,7 +225,32 @@ class impositor:
         self.t.go(self.contents, 0, len(self.contents))
         for f in self.t.found:
             sys.stdout.write(str(f))
-        pass
+
+        if True:
+            import pygtk
+            pygtk.require('2.0')
+            import gtk
+            w = gtk.Window(gtk.WINDOW_TOPLEVEL)
+            w.set_title(' '.join(sys.argv))
+            w.set_default_size(800,-1)
+            w.connect("destroy", lambda w: gtk.main_quit())
+            tt = gtk.TextTagTable()
+            tb = gtk.TextBuffer(tt)
+            tv = gtk.TextView(tb)
+            tv.set_wrap_mode(gtk.WRAP_NONE)
+            #tv.set_editable(False)
+            sw = gtk.ScrolledWindow()
+            sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+            sw.add(tv)
+            h = gtk.HBox()
+            h.pack_start(sw, True, True, 0)
+            w.add(h)
+            w.show_all()
+            src = ''.join([x.dump_editor_utf8() for x in self.t.found])
+            #tb.set_text(src.replace('\x00', '\\0').decode('latin1').encode('utf-8'))
+            tb.set_text(src)
+            gtk.main()
+
     
 def main():
     i = impositor()
