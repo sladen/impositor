@@ -23,7 +23,7 @@ class Keyword(Token):
     pass
 class String(Token):
     def __str__(self):
-        return '(' + self.what + ')'
+        return '(' + ''.join([str(x) for x in self.sub_strings]) + ')'
     pass
 class Delimiter(Token):
     pass
@@ -43,6 +43,18 @@ class Comment(Token):
 class Stream(String):
     def __str__(self):
         return self.what
+    pass
+class SubString(String):
+    def __str__(self):
+        return self.what
+class SubStringEscape(String):
+    def __str__(self):
+        return '\\' + self.what
+    pass
+class SubStringEscapeOctal(String):
+    def __str__(self):
+        return '\\' + oct(self.what)
+class SubStringNested(String):
     pass
 
 class Tokeniser():
@@ -72,6 +84,7 @@ class Tokeniser():
                 if text[i] == '(':
                     # string
                     string = ''
+                    sub_strings = []
                     nested = 1
                     j = i+1
                     while nested > 0:
@@ -81,19 +94,20 @@ class Tokeniser():
                         except ValueError: pass
                         try: minimums.append(text.index('(', j, end))
                         except ValueError: pass
-                        j = min(minimums)
-                        string += text[i+1:j]
+                        j2 = min(minimums)
+                        sub_strings.append(SubString(j,j2,text[j:j2]))
+                        j = j2
                         if text[j] in '()':
                             nested += [1, -1]['()'.index(text[j])]
                             if nested > 0:
-                                string += text[j]
+                                sub_strings.append(SubStringNested(j, j+1, text[j]))
                             j += 1
                         elif text[j] == '\\':
                             #print 'Working on', `text[i:i+50]`, `string`
                             j += 1
                             if text[j] in 'nrtbf()\\':
                                 # escapes
-                                string += '\n\r\t\b\f()\\'['nrtbf()\\'.index(text[j])]
+                                sub_strings.append(SubStringEscape(j-1, j+1, '\n\r\t\b\f()\\'['nrtbf()\\'.index(text[j])]))
                                 j += 1
                                 i = j
                             elif text[j] in '\r\n':
@@ -103,17 +117,20 @@ class Tokeniser():
                                 octal = 0
                                 # octal escapes
                                 for k in xrange(j, j+3):
+                                    # 8 and 9 should be rounded to 7
                                     if text[k].isdigit():
                                         octal = octal << 3 + int(text[k].isdigit(),10) & 7
                                     else:
-                                        j = k
                                         break
+                                sub_strings.append(SubStringEscapeOctal(j - 1, k, chr(octal), digits=k-j))
+                                j = k
                             else:
                                 #assert not 'junking'
                                 # junk 
                                 pass
                     #print 'string', `string`
-                    self.found.append(String(i, j, string))
+                    print >>sys.stderr, `sub_strings`
+                    self.found.append(String(i, j, ''.join([x.what for x in sub_strings]), sub_strings=sub_strings))
                     i = j
                 elif text[i] is '<':
                     if text[i+1] is '<':
