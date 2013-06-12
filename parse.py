@@ -27,7 +27,7 @@ class String(Token):
     def __str__(self):
         return '(' + ''.join([str(x) for x in self.sub_strings]).replace('\0','\\0') + ')'
     def dump_editor_utf8(self):
-        print >>sys.stderr,`self.what[0:2]`
+        #print >>sys.stderr,`self.what[0:2]`
         if self.what.startswith('\xfe\xff'):
             return '(' + self.what.decode('utf-16').encode('utf-8') + ')'
         else:
@@ -141,7 +141,7 @@ class Tokeniser():
                                 # junk 
                                 pass
                     #print 'string', `string`
-                    print >>sys.stderr, `sub_strings`
+                    #print >>sys.stderr, `sub_strings`
                     self.found.append(String(i, j, ''.join([x.what for x in sub_strings]), sub_strings=sub_strings))
                     i = j
                 elif text[i] is '<':
@@ -152,7 +152,7 @@ class Tokeniser():
                     else:
                         # hexstring
                         j = text.index('>', i, end)
-                        print >>sys.stderr, `text[i+1:j]`
+                        #print >>sys.stderr, `text[i+1:j]`
                         zero_append = (j - 1 - i) & 1
                         hexstring = (text[i+1:j] + '0' * zero_append).decode('hex')
                         self.found.append(HexString(i, j, hexstring, zero_append=zero_append))
@@ -214,25 +214,31 @@ class impositor:
         self.contents = f.read()
     def parse(self):
         self.t = Tokeniser()
-        assert self.contents[0:5] == '%PDF-'
+        assert self.contents[0:5] in ('%PDF-', '%FDF-')
         self.pdf_version = float(self.contents[5:8])
-        self.pdf_startxref = self.contents.rindex('startxref')
-        self.pdf_xref_offset = int(self.contents[self.pdf_startxref + len('startxref'):-len('%%EOF\n')])
+        try:
+            # FDF forms don't have a 'startxref'
+            self.pdf_startxref = self.contents.rindex('startxref')
+            self.pdf_xref_offset = int(self.contents[self.pdf_startxref + len('startxref'):-len('%%EOF\n')])
+        except: pass
         #try:
         #    self.t.go(self.contents, self.pdf_xref_offset, self.pdf_startxref)
         #except AssertionError:
         #    pass
         self.t.go(self.contents, 0, len(self.contents))
-        for f in self.t.found:
-            sys.stdout.write(str(f))
+        #for f in self.t.found:
+        #    sys.stdout.write(str(f))
 
         if True:
             import pygtk
             pygtk.require('2.0')
             import gtk
+            import pango
             w = gtk.Window(gtk.WINDOW_TOPLEVEL)
             w.set_title(' '.join(sys.argv))
             w.set_default_size(800,-1)
+            icon = w.render_icon(gtk.STOCK_FIND_AND_REPLACE, gtk.ICON_SIZE_DIALOG)
+            w.set_icon(icon)
             w.connect("destroy", lambda w: gtk.main_quit())
             tt = gtk.TextTagTable()
             tb = gtk.TextBuffer(tt)
@@ -245,10 +251,14 @@ class impositor:
             h = gtk.HBox()
             h.pack_start(sw, True, True, 0)
             w.add(h)
-            w.show_all()
             src = ''.join([x.dump_editor_utf8() for x in self.t.found])
             #tb.set_text(src.replace('\x00', '\\0').decode('latin1').encode('utf-8'))
-            tb.set_text(src)
+            monospace = tb.create_tag('monospace', family='monospace')
+            #monospace.set_property('family', 'Ubuntu Mono 18')
+            #tb.set_text(src)
+            start_iter = tb.get_start_iter()
+            tb.insert_with_tags(start_iter, src, monospace)
+            w.show_all()
             gtk.main()
 
     
