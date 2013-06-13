@@ -257,12 +257,13 @@ class impositor:
             h.pack_start(sw, True, True, 0)
             w.add(h)
             src = ''.join([x.dump_editor_utf8() for x in self.t.found])
-            #tb.set_text(src.replace('\x00', '\\0').decode('latin1').encode('utf-8'))
-            monospace = tb.create_tag('monospace', family='monospace')
-            #monospace.set_property('family', 'Ubuntu Mono 18')
-            #tb.set_text(src)
+
+            monospace = gtk.TextTag('monospace')
+            monospace.set_property('family', 'monospace')
+            tt.add(monospace)
+
             start_iter = tb.get_start_iter()
-            tb.insert_with_tags(start_iter, src, monospace)
+            tb.insert_with_tags_by_name(start_iter, src, 'monospace')
             w.show_all()
             gtk.main()
 
