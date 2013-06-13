@@ -182,7 +182,12 @@ class Tokeniser():
                     self.found.append(Name(i, j, name))
                     i = j
                 elif text[i] is '%':
-                    j = text.index('\n', i+1, end)
+                    try:
+                        j = text.index('\n', i+1, end)
+                    except ValueError:
+                        """testcase: http://www.thetram.net/pdfs/phase2Map/lenton/Gregory%20Street%20&%20Lenton%20Lane.pdf
+                        which ends %%EOF\r"""
+                        j = text.index('\r', i+1, end)
                     self.found.append(Comment(i, j+1, text[i:j+1]))
                     i = j + 1
                 else:
