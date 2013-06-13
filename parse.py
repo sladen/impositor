@@ -16,12 +16,22 @@ class Token():
         return self.what
     def dump_editor_utf8(self):
         return self.__str__().decode('latin-1').encode('utf-8')
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), [])]
 
 class Whitespace(Token):
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['whitespace'])]
     pass
 class Regular(Token):
     pass
 class Keyword(Token):
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['keyword'])]
+    pass
+class Number(Keyword):
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['number'])]
     pass
 class String(Token):
     def __str__(self):
@@ -32,14 +42,28 @@ class String(Token):
             return '(' + self.what.decode('utf-16').encode('utf-8') + ')'
         else:
             return self.__str__().decode('latin-1').encode('utf-8')
+    def dump_editor_utf8_with_tags(self):
+        try:
+            r = [('(', ('string',))]
+            for x in self.sub_strings:
+                r += x.dump_editor_utf8_with_tags()
+            r += [(')', ('string',))]
+        except AttributeError:
+            r = [(self.dump_editor_utf8(), ['string'])]
+        print `r`
+        return r
     pass
 class Delimiter(Token):
     pass
 class DelimiterOperator(Delimiter):
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['operator'])]
     pass
 class Name(Token):
     def __str__(self):
         return '/' + self.what
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['name'])]
 class HexString(String):
     def __str__(self):
         e = self.what.encode('hex')
@@ -49,21 +73,33 @@ class HexString(String):
             e = e[:-1]
         return '<' + self.what.encode('hex') + '>'
 class Comment(Token):
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['comment'])]
     pass
 class Stream(String):
     def __str__(self):
         return self.what
     def dump_editor_utf8(self):
         return '<%d bytes>' % (self.end-self.start)
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['stream'])]
     pass
 class SubString(String):
+    #def __str__(self):
+    #    return '(' + ''.join([str(x) for x in self.sub_strings]).replace('\0','\\0') + ')'
     def __str__(self):
         return self.what
-class SubStringEscape(String):
+    def dump_editor_utf8(self):
+        return str(self).replace('\0','\\0').decode('latin-1').encode('utf-8')
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['substring'])]
+class SubStringEscape(SubString):
     def __str__(self):
         return '\\' + self.what
+    def dump_editor_utf8_with_tags(self):
+        return [(self.dump_editor_utf8(), ['stringescape'])]
     pass
-class SubStringEscapeOctal(String):
+class SubStringEscapeOctal(SubStringEscape):
     def __str__(self):
         return '\\' + oct(self.what)
 class SubStringNested(String):
@@ -202,7 +238,11 @@ class Tokeniser():
                     else:
                         keyword += text[j]
                         j += 1
-                self.found.append(Keyword(i, j, keyword))
+                try:
+                    n = float(keyword)
+                    self.found.append(Number(i, j, keyword))
+                except:
+                    self.found.append(Keyword(i, j, keyword))
                 i = j
                 if keyword == 'stream':
                     # stream contents, \r follower not allowed
@@ -241,12 +281,12 @@ class impositor:
             import pango
             w = gtk.Window(gtk.WINDOW_TOPLEVEL)
             w.set_title(' '.join(sys.argv))
-            w.set_default_size(800,-1)
+            w.set_default_size(1000,600)
             icon = w.render_icon(gtk.STOCK_FIND_AND_REPLACE, gtk.ICON_SIZE_DIALOG)
             w.set_icon(icon)
             w.connect("destroy", lambda w: gtk.main_quit())
-            tt = gtk.TextTagTable()
-            tb = gtk.TextBuffer(tt)
+            ttt = gtk.TextTagTable()
+            tb = gtk.TextBuffer(ttt)
             tv = gtk.TextView(tb)
             tv.set_wrap_mode(gtk.WRAP_NONE)
             #tv.set_editable(False)
@@ -256,14 +296,64 @@ class impositor:
             h = gtk.HBox()
             h.pack_start(sw, True, True, 0)
             w.add(h)
-            src = ''.join([x.dump_editor_utf8() for x in self.t.found])
 
-            monospace = gtk.TextTag('monospace')
-            monospace.set_property('family', 'monospace')
-            tt.add(monospace)
+            # Syntax highlighting colours picked to match
+            # http://en.wikipedia.org/wiki/Syntax_highlighting example
+            tt = gtk.TextTag('default')
+            tt.set_property('family', 'monospace')
+            #tt.set_property('background', '#c0c000')
+            ttt.add(tt)
 
-            start_iter = tb.get_start_iter()
-            tb.insert_with_tags_by_name(start_iter, src, 'monospace')
+            tt = gtk.TextTag('monospace')
+            tt.set_property('family', 'monospace')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('comment')
+            tt.set_property('foreground', '#808080')
+            tt.set_property('style', pango.STYLE_ITALIC)
+            ttt.add(tt)
+
+            tt = gtk.TextTag('name')
+            tt.set_property('foreground', '#993333')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('keyword')
+            tt.set_property('foreground', '#b1b100')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('operator')
+            tt.set_property('foreground', '#009900')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('stream')
+            tt.set_property('foreground', '#009900')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('string')
+            tt.set_property('foreground', '#ff0000')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('substring')
+            tt.set_property('foreground', '#ff0000')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('stringescape')
+            tt.set_property('foreground', '#000099')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('number')
+            tt.set_property('foreground', '#0000dd')
+            ttt.add(tt)
+
+            tt = gtk.TextTag('whitespace')
+            tt.set_property('background', '#f7f7f7')
+            ttt.add(tt)
+
+            start_iter, end_iter = tb.get_bounds()
+            tb.apply_tag_by_name('default', start_iter, end_iter)
+            for x in self.t.found:
+                for text, tags in x.dump_editor_utf8_with_tags():
+                    tb.insert_with_tags_by_name(start_iter, text, 'monospace', *tags)
             w.show_all()
             gtk.main()
 
