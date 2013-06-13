@@ -101,7 +101,7 @@ class SubStringEscape(SubString):
     pass
 class SubStringEscapeOctal(SubStringEscape):
     def __str__(self):
-        return '\\' + oct(self.what)
+        return '\\' + oct(ord(self.what))
 class SubStringNested(String):
     pass
 
@@ -167,7 +167,7 @@ class Tokeniser():
                                 for k in xrange(j, j+3):
                                     # 8 and 9 should be rounded to 7
                                     if text[k].isdigit():
-                                        octal = octal << 3 + int(text[k].isdigit(),10) & 7
+                                        octal = octal << 3 + int(text[k],10) & 7
                                     else:
                                         break
                                 sub_strings.append(SubStringEscapeOctal(j - 1, k, chr(octal), digits=k-j))
