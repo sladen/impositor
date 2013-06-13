@@ -35,7 +35,8 @@ class Number(Keyword):
     pass
 class String(Token):
     def __str__(self):
-        return '(' + ''.join([str(x) for x in self.sub_strings]).replace('\0','\\0') + ')'
+        # less used
+        return '(' + ''.join([str(x) for x in self.sub_strings]) + ')'
     def dump_editor_utf8(self):
         #print >>sys.stderr,`self.what[0:2]`
         if self.what.startswith('\xfe\xff'):
@@ -44,13 +45,19 @@ class String(Token):
             return self.__str__().decode('latin-1').encode('utf-8')
     def dump_editor_utf8_with_tags(self):
         try:
+            #s = ''.join([str(x) for x in self.sub_strings])
+            if self.what.startswith('\xfe\xff'):
+                r = [('(' + self.what.decode('utf-16').encode('utf-8') + ')', ('string',))]
+                return r
+        except AttributeError: pass
+        try:
             r = [('(', ('string',))]
             for x in self.sub_strings:
                 r += x.dump_editor_utf8_with_tags()
             r += [(')', ('string',))]
         except AttributeError:
             r = [(self.dump_editor_utf8(), ['string'])]
-        print `r`
+        #print `r`
         return r
     pass
 class Delimiter(Token):
@@ -339,6 +346,7 @@ class impositor:
 
             tt = gtk.TextTag('stringescape')
             tt.set_property('foreground', '#000099')
+            tt.set_property('weight', pango.WEIGHT_BOLD)
             ttt.add(tt)
 
             tt = gtk.TextTag('number')
