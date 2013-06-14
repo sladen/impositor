@@ -15,7 +15,7 @@ class Token():
     def __str__(self):
         return self.what
     def dump_editor_utf8(self):
-        return self.__str__().decode('latin-1').encode('utf-8')
+        return str(self).decode('latin-1').encode('utf-8').replace('\0','\\0')
     def dump_editor_utf8_with_tags(self):
         return [(self.dump_editor_utf8(), [])]
 
@@ -282,6 +282,7 @@ class impositor:
         #    sys.stdout.write(str(f))
 
         if True:
+            print >>sys.stderr, ' '.join(sys.argv)
             import pygtk
             pygtk.require('2.0')
             import gtk
