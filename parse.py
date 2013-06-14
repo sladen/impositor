@@ -110,6 +110,8 @@ class SubStringEscapeOctal(SubStringEscape):
     def __str__(self):
         return '\\' + oct(ord(self.what))
 class SubStringNested(String):
+    def __str__(self):
+        return self.what
     pass
 
 class Tokeniser():
