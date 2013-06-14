@@ -219,7 +219,7 @@ class Tokeniser():
                         if text[j] in (self.whitespace + self.delimiters):
                             break
                         elif text[j] == '#':
-                            name += int(text[j+1:j+1+2], 16)
+                            name += chr(int(text[j+1:j+1+2], 16))
                             j += 3
                         else:
                             name += text[j]
@@ -261,7 +261,9 @@ class Tokeniser():
                     extent = 1 + text.index('\n',i,i+2)
                     self.found.append(Whitespace(i, extent, text[i:extent]))
                     # this should really be done by reading /Length from the dictionary
+                    print 'readings stream, starting at', i, `text[i:i+20]`
                     les = []
+                    line_endings = ('\r\n','\r','\n','')
                     for le in line_endings:
                         try:
                             les.append(text.index(le + 'endstream', extent, end))
