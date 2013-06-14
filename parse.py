@@ -257,18 +257,23 @@ class Tokeniser():
                 if keyword == 'stream':
                     # stream contents, \r follower not allowed
                     # currently this does not strip the newline off the front
-                    assert text[i] == '\n' or text[i:i+2] == '\r\n'
-                    extent = 1 + text.index('\n',i,i+2)
+                    try:
+                        assert text[i] == '\n' or text[i:i+2] == '\r\n'
+                    except AssertionError:
+                        print >>sys.stderr, 'Warning: stream\\r is forbidden by the PDF specification'
+                    #extent = 1 + text.index('\n',i,i+2)
+                    if text[i:i+2] == '\r\n':
+                        extent = i+2
+                    elif text[i:i+1] in ('\n', '\r'):
+                        extent = i+1
                     self.found.append(Whitespace(i, extent, text[i:extent]))
                     # this should really be done by reading /Length from the dictionary
-                    print 'readings stream, starting at', i, `text[i:i+20]`
-                    les = []
-                    line_endings = ('\r\n','\r','\n','')
-                    for le in line_endings:
+                    #print 'readings stream, starting at', i, `text[i:i+20]`
+                    preceding_line_endings = ('\r\n','\r','\n','')
+                    for le in preceding_line_endings:
                         try:
-                            les.append(text.index(le + 'endstream', extent, end))
+                            j = text.index(le + 'endstream', extent, end)
                         except ValueError: pass
-                    j = min(les)
                     self.found.append(Stream(extent, j, text[extent:j]))
                     i = j
  
