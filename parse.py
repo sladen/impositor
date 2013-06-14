@@ -227,12 +227,13 @@ class Tokeniser():
                     self.found.append(Name(i, j, name))
                     i = j
                 elif text[i] is '%':
-                    try:
-                        j = text.index('\n', i+1, end)
-                    except ValueError:
-                        """testcase: http://www.thetram.net/pdfs/phase2Map/lenton/Gregory%20Street%20&%20Lenton%20Lane.pdf
-                        which ends %%EOF\r"""
-                        j = text.index('\r', i+1, end)
+                    line_endings = ('\r\n', '\r', '\n')
+                    les = []
+                    for le in line_endings:
+                        try:
+                            les.append(text.index(le, i+1, end))
+                        except: pass
+                    j = min(les)
                     self.found.append(Comment(i, j+1, text[i:j+1]))
                     i = j + 1
                 else:
@@ -259,7 +260,13 @@ class Tokeniser():
                     assert text[i] == '\n' or text[i:i+2] == '\r\n'
                     extent = 1 + text.index('\n',i,i+2)
                     self.found.append(Whitespace(i, extent, text[i:extent]))
-                    j = text.index('\nendstream', extent, end)
+                    # this should really be done by reading /Length from the dictionary
+                    les = []
+                    for le in line_endings:
+                        try:
+                            les.append(text.index(le + 'endstream', extent, end))
+                        except ValueError: pass
+                    j = min(les)
                     self.found.append(Stream(extent, j, text[extent:j]))
                     i = j
  
@@ -372,6 +379,8 @@ class impositor:
 def main():
     i = impositor()
     fp = open(sys.argv[1], 'r')
+    if hasattr(fp, 'newlines'):
+        print >>sys.stderr,'warning: Python universal newline (line-ending) support active'
     i.open(fp)
     i.parse()
 
